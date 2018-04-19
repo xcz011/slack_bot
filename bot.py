@@ -34,7 +34,7 @@ class Bot(object):
         # an oauth token. We can connect to the client without authenticating
         # by passing an empty string as a token and then reinstantiating the
         # client with a valid OAuth token once we have one.
-        self.client = SlackClient('xoxb-344991929751-MFnKGkRwNXOPGK5UeQ0IR9ib')
+        self.client = SlackClient('xoxb-349472886132-uFeseSrE3ya7FeSz97SlFUeo')
         # We'll use this dictionary to store the state of each message object.
         # In a production envrionment you'll likely want to store this more
         # persistantly in  a database.
@@ -96,7 +96,7 @@ class Bot(object):
     def post_message_by_channel(self, channel_id, msg, attach):
         post_message = self.client.api_call(
                             "chat.postMessage",
-                            channel='CA15FN733',
+                            channel=channel_id,
                             text=msg,
                             username="pybot",
                             icon_emoji=":robot_face:",
@@ -109,7 +109,17 @@ class Bot(object):
         return_msg = self.client.api_call(
                             "groups.open",
                             name=channel_name,
-                            )
+                            )   
+        print(return_msg)
+        return return_msg
+
+    def update_msg(self, channel_id, ts, text, attachment):
+        return_msg = self.client.api_call("chat.update",
+                                channel=channel_id,
+                                ts= ts,
+                                text="Task Complete!",
+                                attachments=attachment
+                                )
         print(return_msg)
         return return_msg
 

@@ -15,23 +15,72 @@ slack = pyBot.client
 
 app = Flask(__name__)
 
-TASK_IDS = {}
-task_id = 'LB-2375'
+FLAG = 1 
 
 # Attachment JSON containing our link button
 # For this demo app, The task ID should be the last segment of the URL
-attach_json = [
-    {
-        "fallback": "Upgrade your Slack client to use messages like these.",
-        "color": "#CC0000",
-        "actions": [
-            {
-                "type": "button",
-                "text": ":red_circle:   Complete Task: " + task_id,
-                "url": "https://e2cb80d8.ngrok.io/workflow/" + task_id,
-            }
-        ]
-    }
+button_json = [
+        {
+            "text": "Can you solve this incient?",
+            "fallback": "You are good",
+            "callback_id": "wopr_game",
+            "color": "#3AA3E3",
+            "attachment_type": "default",
+            "actions": [
+                {
+                    "name": "approve",
+                    "text": "✔️ Yes",
+                    "style": "primary",
+                    "type": "button",
+                    "value": "accept",
+                },
+                {
+                    "name": "dontapprove",
+                    "text": "🚫 No",
+                    "style": "danger",
+                    "type": "button",
+                    "value": "no-accept"
+                }
+            ]
+        }
+]
+
+finish_json = [
+ {
+            "text": "Plugging in skype cable for Marketing?",
+            "fallback": "You are unable to help here",
+            "callback_id": "wopr_game",
+            "color": "#3AA3E3",
+            "attachment_type": "default",
+            "actions": [
+                {
+                    "name": "game",
+                    "text": ":heavy_check_mark: You have accepted a task",
+                    "style": "danger",
+                    "type": "button",
+                    "value": "no-accept"
+                }
+            ]
+        }
+]
+
+not_accept_json = [
+ {
+            "text": "Plugging in skype cable for Marketing?",
+            "fallback": "You are unable to help here",
+            "callback_id": "wopr_game",
+            "color": "#3AA3E3",
+            "attachment_type": "default",
+            "actions": [
+                {
+                    "name": "game",
+                    "text": ":heavy_check_mark: Please reroute the task",
+                    "style": "danger",
+                    "type": "button",
+                    "value": "no-accept"
+                }
+            ]
+        }
 ]
 
 @app.route("/thanks", methods=["GET", "POST"])
@@ -50,6 +99,25 @@ def thanks():
     return render_template("thanks.html")
 
 
+
+@app.route("/slack/message_actions", methods=["POST"])
+def message_actions():
+    # handle the button action
+    print('******************')
+    form_json = json.loads(request.form["payload"])
+    print(form_json)
+    print('*******************')
+    ts = form_json['original_message']['ts']
+    text = form_json['original_message']['text']
+    channel_id =  form_json['channel']['id']
+    action =  form_json['actions'][0]['name']
+    if action == 'approve':
+        pyBot.update_msg(channel_id, ts, text, finish_json)
+    else:
+        pyBot.update_msg(channel_id, ts, text, not_accept_json)
+    return make_response('', 200)
+
+
 @app.route("/listening", methods=["GET", "POST"])
 def hears():
     """
@@ -62,7 +130,9 @@ def hears():
     # sends back.
     #       For more info: https://api.slack.com/events/url_verification
     slack_event = json.loads(request.data)
-    print(slack_event)
+    print('**********new event happenning... ********************************************')
+    # print(slack_event)
+    print('******************************************************************************')
     if "challenge" in slack_event:
         return make_response(slack_event["challenge"], 200, {"content_type":
                                                              "application/json"
@@ -81,43 +151,40 @@ def hears():
     # ====== Process Incoming Events from Slack ======= #
     # If the incoming request is an Event we've subcribed to
     if "event" in slack_event:
-        # webhook_url = 'https://hooks.slack.com/services/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'
-        # slack_data = {'text': "this is xu testing, please ignore, thanks"}
-
-
-        # webhook_url = 'https://slack.com/api/channels.create'
-        # slack_data = {'token': "EBjxX0eKxAlUw2gUxNrFulRF",
-        #               'name': 'xu_test_channel',
-        #               'validate': 'true'
-        #             }
+        try:
+            bot_id = slack_event['event']['bot_id']
+            channel_id= slack_event['event']['channel']
+        except:
+            bot_id = 'BAANR2N871'
+            channel_id ='error'
         
-        # response = requests.post(
-        #     webhook_url, data=json.dumps(slack_data),
-        #     headers={'Content-Type': 'application/json'}
-        # )
-        bot_id = slack_event['event']['bot_id']
-        if bot_id == 'BA4CME96X':
-            # channel_id= slack_event['event']['channel']
-            # print(channel_id)
-            
+        if bot_id == 'BAANR2N87':
+            pyBot.post_message_by_channel('CAAR4N9D5', '', button_json)
             # get incident id
-            incident_id = slack_event['event']['attachments'][0]['title']
-            print(incident_id)
+            try:
+                incident_id = slack_event['event']['attachments'][0]['title']
+                print(incident_id)
+            except:
+                incident_id = 'error'
 
             # get incident detail 
             attachments = slack_event['event']['attachments']
             attach_json = json.dumps(attachments)
 
-            # create channel
-            channel_id = pyBot.create_channel(incident_id)
-            print(channel_id)
-            # pyBot.post_message_by_channel(channel_id, '',attach_json)
-        # res = pyBot.post_message_by_channel(channel_id, 'Let\'s get started!',attach_json)
-        # TASK_IDS[task_id] = {
-        #             'channel': res['channel'],
-        #             'ts': res['message']['ts']
-        #         }
-        
+            # create channel by incident id 
+            pyBot.post_message_by_channel(channel_id, 'channel ' + incident_id + ' is going to be created','')
+            new_channel_id = create_channel(incident_id)
+            print('new_channel_id is '+ new_channel_id)
+            print('inivte user and bot')
+            jen = 'UA9466PFB'
+            invite_channel(new_channel_id, jen)
+            invite_channel(new_channel_id, 'BAANR2N87')
+
+            # post message
+            pyBot.post_message_by_channel(new_channel_id, '', attach_json)
+            
+            # accept button
+            pyBot.post_message_by_channel(new_channel_id, '', button_json)
         
         
         make_response('success', 200, {"content_type":"application/json" } )
@@ -127,53 +194,44 @@ def hears():
     return make_response("[NO EVENT IN SLACK REQUEST] These are not the droids\
                          you're looking for.", 404, {"X-Slack-No-Retry": 1})
 
-# @app.route("/workflow/<task_id>", methods=['GET'])
-# def test(task_id):
+def create_channel(channel_name):
+    url = "https://slack.com/api/channels.create"
+    querystring = {
+            "token":"xoxp-348978265808-349142776593-349062225280-53bb042be67927ebfbd372bd2f39101e",
+            "name":channel_name
+    }
 
-#     task_form = """<form method="POST" action="/complete/{}">
-#                     <input type="submit" value="Do The Thing" />
-#                 </form>""".format(task_id)
+    headers = {
+    'Cache-Control': "no-cache"
+    }
+    
+    response = requests.request("POST", url, headers=headers, params=querystring)
+    res = response.json()
+    print( res)
+    try:
+        new_channel_id = res['channel']['id']
+    except:
+        new_channel_id = 'CAAR4N9D5'
+    return new_channel_id
 
-#     return make_response(task_form, 200)
 
-# @app.route("/complete/<task_id>", methods=['POST'])
-# def complete(task_id):
-#     """
-#     This is where your app's business logic would live.
-#     Once the task has been complete, the user will be directed to this `/complete`
-#     page, which shows a link back to their Slack conversation
-#     """
+def invite_channel(channel_id, user_id):
+    url = "https://slack.com/api/channels.invite"
+    querystring = {
+            "token":"xoxp-348978265808-349142776593-349062225280-53bb042be67927ebfbd372bd2f39101e",
+            "channel": channel_id,
+            "user": user_id
+    }
 
-#     # When this page loads, we update the original Slack message to show that
-#     # the pending task has been completed
-#     attach_json = [
-#         {
-#             "fallback": "Upgrade your Slack client to use messages like these.",
-#             "color": "#36a64f",
-#             "text": ":white_check_mark:   *Completed Task: {}*".format(task_id),
-#             "mrkdwn_in": ["text"]
-#         }
-#     ]
-#     res = slack.api_call(
-#         "chat.update",
-#         channel=TASK_IDS[task_id]["channel"],
-#         ts=TASK_IDS[task_id]["ts"],
-#         text="Task Complete!",
-#         attachments=attach_json
-#     )
+    headers = {
+    'Cache-Control': "no-cache"
+    }
+    
+    response = requests.request("POST", url, headers=headers, params=querystring)
+    res = response.json()
+    print( res)
 
-#     # Get the message permalink to redirect the user back to Slack
-#     res = slack.api_call(
-#         "chat.getPermalink",
-#         channel=TASK_IDS[task_id]["channel"],
-#         message_ts=TASK_IDS[task_id]["ts"]
-#     )
 
-#     # Link the user back to the original message
-#     slack_link = "<a href=\"{}\">Return to Slack</a>".format(res['permalink'])
-
-#     # Redirect the user back to their Slack conversation
-#     return make_response("Task Complete!<br/>" + slack_link, 200)
 
 if __name__ == '__main__':
     app.run(debug=True)
