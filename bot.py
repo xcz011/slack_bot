@@ -93,13 +93,24 @@ class Bot(object):
         return dm_id
 
 
-    def post_message_by_channel(self, channel_id, msg):
+    def post_message_by_channel(self, channel_id, msg, attach):
         post_message = self.client.api_call(
                             "chat.postMessage",
                             channel='CA15FN733',
                             text=msg,
                             username="pybot",
-                            icon_emoji=":robot_face:"
+                            icon_emoji=":robot_face:",
+                            attachments = attach
                             )
+        print(post_message)
+        return post_message
+
+    def create_channel(self, channel_name):
+        return_msg = self.client.api_call(
+                            "groups.open",
+                            name=channel_name,
+                            )
+        print(return_msg)
+        return return_msg
 
 

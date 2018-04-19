@@ -15,6 +15,24 @@ slack = pyBot.client
 
 app = Flask(__name__)
 
+TASK_IDS = {}
+task_id = 'LB-2375'
+
+# Attachment JSON containing our link button
+# For this demo app, The task ID should be the last segment of the URL
+attach_json = [
+    {
+        "fallback": "Upgrade your Slack client to use messages like these.",
+        "color": "#CC0000",
+        "actions": [
+            {
+                "type": "button",
+                "text": ":red_circle:   Complete Task: " + task_id,
+                "url": "https://e2cb80d8.ngrok.io/workflow/" + task_id,
+            }
+        ]
+    }
+]
 
 @app.route("/thanks", methods=["GET", "POST"])
 def thanks():
@@ -77,9 +95,28 @@ def hears():
         #     webhook_url, data=json.dumps(slack_data),
         #     headers={'Content-Type': 'application/json'}
         # )
-        channel_id = slack_event['event']['item']['channel']
-        print((type(slack_event)))
-        pyBot.post_message_by_channel(channel_id, 'channel id is'+ channel_id)
+        bot_id = slack_event['event']['bot_id']
+        if bot_id == 'BA4CME96X':
+            # channel_id= slack_event['event']['channel']
+            # print(channel_id)
+            
+            # get incident id
+            incident_id = slack_event['event']['attachments'][0]['title']
+            print(incident_id)
+
+            # get incident detail 
+            attachments = slack_event['event']['attachments']
+            attach_json = json.dumps(attachments)
+
+            # create channel
+            channel_id = pyBot.create_channel(incident_id)
+            print(channel_id)
+            # pyBot.post_message_by_channel(channel_id, '',attach_json)
+        # res = pyBot.post_message_by_channel(channel_id, 'Let\'s get started!',attach_json)
+        # TASK_IDS[task_id] = {
+        #             'channel': res['channel'],
+        #             'ts': res['message']['ts']
+        #         }
         
         
         
@@ -90,6 +127,53 @@ def hears():
     return make_response("[NO EVENT IN SLACK REQUEST] These are not the droids\
                          you're looking for.", 404, {"X-Slack-No-Retry": 1})
 
+# @app.route("/workflow/<task_id>", methods=['GET'])
+# def test(task_id):
+
+#     task_form = """<form method="POST" action="/complete/{}">
+#                     <input type="submit" value="Do The Thing" />
+#                 </form>""".format(task_id)
+
+#     return make_response(task_form, 200)
+
+# @app.route("/complete/<task_id>", methods=['POST'])
+# def complete(task_id):
+#     """
+#     This is where your app's business logic would live.
+#     Once the task has been complete, the user will be directed to this `/complete`
+#     page, which shows a link back to their Slack conversation
+#     """
+
+#     # When this page loads, we update the original Slack message to show that
+#     # the pending task has been completed
+#     attach_json = [
+#         {
+#             "fallback": "Upgrade your Slack client to use messages like these.",
+#             "color": "#36a64f",
+#             "text": ":white_check_mark:   *Completed Task: {}*".format(task_id),
+#             "mrkdwn_in": ["text"]
+#         }
+#     ]
+#     res = slack.api_call(
+#         "chat.update",
+#         channel=TASK_IDS[task_id]["channel"],
+#         ts=TASK_IDS[task_id]["ts"],
+#         text="Task Complete!",
+#         attachments=attach_json
+#     )
+
+#     # Get the message permalink to redirect the user back to Slack
+#     res = slack.api_call(
+#         "chat.getPermalink",
+#         channel=TASK_IDS[task_id]["channel"],
+#         message_ts=TASK_IDS[task_id]["ts"]
+#     )
+
+#     # Link the user back to the original message
+#     slack_link = "<a href=\"{}\">Return to Slack</a>".format(res['permalink'])
+
+#     # Redirect the user back to their Slack conversation
+#     return make_response("Task Complete!<br/>" + slack_link, 200)
 
 if __name__ == '__main__':
     app.run(debug=True)
