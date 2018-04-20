@@ -16,7 +16,7 @@ slack = pyBot.client
 app = Flask(__name__)
 
 FLAG = 1 
-
+DES = ''
 # Attachment JSON containing our link button
 # For this demo app, The task ID should be the last segment of the URL
 button_json = [
@@ -85,9 +85,24 @@ showsolution_json = [
             ]
         }
 ]
+
+nosolution_json = [
+        {
+            "text": "Would you like see previous solution related to this incident?",
+            "fallback": "You are good",
+            "callback_id": "wopr_game",
+            "color": "#3AA3E3",
+            "attachment_type": "default",
+            "fields": [
+                {
+                    "title": "✔️ OK, Thanks! Good Luck.."
+                                   }
+            ]
+        }
+]
 finish_json = [
  {
-            "text": "Can you solve this incient?",
+            "text": "Are you the right person to resolve this incident?",
             "fallback": "You are unable to help here",
             "callback_id": "wopr_game",
             "color": "#00ff00",
@@ -102,14 +117,14 @@ finish_json = [
 
 not_accept_json = [
  {
-            "text": "Can you solve this incient?",
+            "text": "Are you the right person to resolve this incident?",
             "fallback": "You are unable to help here",
             "callback_id": "wopr_game",
             "color": "#800000",
             "attachment_type": "default",
             "fields": [
                 {
-                    "title": "🚫 Please route this incident to correct group"
+                    "title": "🚫 Please route this incident to correct person"
                                    }
             ]
         }
@@ -147,6 +162,38 @@ def resolve():
     
     return make_response('', 200)
 
+@app.route("/slack/reassign", methods=["POST"])
+def reassign():
+    # Parse the request payload
+    print('enter button process area')
+    print(request.form)
+
+    new_user = request.form.get('text', None)
+    channel_name = request.form.get('channel_name', None)
+    channel_id = request.form.get('channel_id', None)
+    sys_id = get_sysid_by_incident(channel_name)
+    
+    # get name
+    names = new_user.split('.')
+    full_name = names[0].split('@')[1] + ' ' + names[1]
+    email =  names[0].split('@')[1] + '.' + names[1] + '@pnc.com'
+    
+    # update the serviewNow assignment
+    reassign_incident(sys_id, full_name)
+
+    # update in the channel
+    pyBot.post_message_by_channel(channel_id,'✔️ {} has been reassigned to {}. '.format(channel_name, full_name),'')
+    
+    # invite user 
+    user_id = pyBot.user_lookup(email)
+    invite_channel(channel_id, user_id)
+    # are you the right person
+    pyBot.post_message_by_channel(channel_id, '', button_json)
+
+
+
+    return make_response('', 200)
+
 @app.route("/slack/message_actions", methods=["POST"])
 def message_actions():
     # handle the button action
@@ -181,26 +228,43 @@ def message_actions():
         incident_name = form_json['channel']['name']
         sys_id = get_sysid_by_incident(incident_name)
         action =  form_json['actions'][0]['name']
-        print('**************')
-        print(form_json['actions'][0])
-        print('**************')
+        
+        # who is clicking
+        print(form_json['user'])
+        user_id = form_json['user']['id']
+        user_name = form_json['user']['name']
+        # print('**************')
+        # print(form_json)
+        # print('**************')
         # print(sys_id, incident_name)
         if action == 'approve':
-            pyBot.update_msg(channel_id, ts, text, finish_json)
+            pyBot.update_msg(channel_id, ts, text, [
+                    {
+                                "text": "Are you the right person to resolve this incident?",
+                                "fallback": "You are unable to help here",
+                                "callback_id": "wopr_game",
+                                "color": "#00ff00",
+                                "attachment_type": "default",
+                                "fields": [
+                                    {
+                                        "title": "✔️ {} has accepted {}".format(user_name,incident_name)
+                                                    }
+                                ]
+                            }
+                    ])
 
             print("update the serviceNow...")
             update_incident(sys_id)
             pyBot.post_message_by_channel(channel_id, '✔️ Update incident to In progress', '')
 
             # post point to user channel
-            jen = 'UA9466PFB'
-            dm_id = pyBot.open_dm(jen)
+            dm_id = pyBot.open_dm(user_id)
 
             pyBot.post_message_by_channel(dm_id, '', [
                                             {   "color": "#2eb886",
                                                 "fields": [
                                                     {
-                                                        "title": 'Thanks for your help, you just got 2 spotlight point for accepting ' + incident_name.upper()
+                                                        "title": 'Thanks for your help, {}. You just got 2 spotlight point for accepting {}'.format(user_name, incident_name.upper()) 
                                                     },
                                                     {
                                                         "title": "Have a nice Day",
@@ -216,11 +280,12 @@ def message_actions():
             pyBot.update_msg(channel_id, ts, text, showsolution_json)
 
             # call api and post solution
-            att = solution_suggest('What are the assumptions of ordinary least squares regression?')
-            print(type(att))
-            print(att['text'])
-            print(att['attachments'])
+            att = solution_suggest(desttt)
+            print(att)
             pyBot.post_message_by_channel(channel_id, att['text'],  att['attachments'])
+
+        elif action == 'noneed_solution':
+            pyBot.update_msg(channel_id, ts, text, nosolution_json)
         else:
             pyBot.update_msg(channel_id, ts, text, not_accept_json)
     return make_response('', 200)
@@ -286,6 +351,11 @@ def hears():
                    user_name = di['value']
                 elif di['title'] == 'Priority':
                    priority = di['value']
+                elif di['title'] == 'Short description':
+                    desttt =  di['value']
+            print('descrpiotn: ------------------888888888888888888888******************', desttt)
+            global desttt
+
 
             print('inivte user and bot and chat with user')
             jen = 'UA9466PFB'
@@ -434,14 +504,34 @@ def resolve_incident(sys_id, close_note, resolve_code):
     }
     response = requests.put(url, auth=(user, pwd), headers=headers, data= str(data))
 
+def reassign_incident(sys_id, full_name):
+    # Eg. User name="admin", Password="admin" for this code sample.
+    user = 'han.solo'
+    pwd = 'HanSolo2018'
+
+    # Set proper headers
+    headers = {"Content-Type":"application/json","Accept":"application/json"}
+    
+    # Do the HTTP request
+    url = 'https://pncmelliniumfalcon.service-now.com/api/now/table/incident/' + sys_id
+
+    data = {
+        "assigned_to" : str(full_name)
+    }
+    response = requests.put(url, auth=(user, pwd), headers=headers, data= str(data))
+
 
 def solution_suggest(description):
 
-    url = 'http://16ad2ae7.ngrok.io/get_solutions'
-    payload = "{\"description\": \"What are the assumptions of ordinary least squares regression?\",\n    \"max_responses\": 3\n}"
+    url = 'http://abd6ecfd.ngrok.io/get_solutions'
+    payload = {
+        "description" : description,
+        "max_responses": 3
+    }
+
     headers = {"Content-Type":"application/json","Accept":"application/json"}
 
-    response = requests.post(url,  headers=headers ,data=payload)
+    response = requests.post(url,  headers=headers ,data=json.dumps(payload))
     data = response.json()
     return data
 

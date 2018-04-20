@@ -93,6 +93,15 @@ class Bot(object):
         return dm_id
 
 
+    def user_lookup(self, email):
+        post_message = self.client.api_call(
+                            "users.lookupByEmail",
+                            email=email
+                            )
+        print(post_message['user']['id'])
+
+        return post_message['user']['id']
+
     def post_message_by_channel(self, channel_id, msg, attach):
         post_message = self.client.api_call(
                             "chat.postMessage",
@@ -115,7 +124,7 @@ class Bot(object):
         return_msg = self.client.api_call("chat.update",
                                 channel=channel_id,
                                 ts= ts,
-                                text="Task Complete!",
+                                text="  ",
                                 attachments=attachment
                                 )
         # print(return_msg)
