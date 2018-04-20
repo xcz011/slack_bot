@@ -98,8 +98,6 @@ class Bot(object):
                             "chat.postMessage",
                             channel=channel_id,
                             text=msg,
-                            username="pybot",
-                            icon_emoji=":robot_face:",
                             attachments = attach
                             )
         print(post_message)
@@ -110,7 +108,7 @@ class Bot(object):
                             "groups.open",
                             name=channel_name,
                             )   
-        print(return_msg)
+        # print(return_msg)
         return return_msg
 
     def update_msg(self, channel_id, ts, text, attachment):
@@ -120,7 +118,79 @@ class Bot(object):
                                 text="Task Complete!",
                                 attachments=attachment
                                 )
-        print(return_msg)
+        # print(return_msg)
         return return_msg
+    def close_incident(self, channel_id, resolve_code, resolve_note, incident_id):
+        post_message = self.client.api_call(
+                            "chat.postMessage",
+                            channel=channel_id,
+                            attachments = [
+                                            {
+                                                "title": incident_id.upper() +" HAS BEEN CLOSED",
+                                                "color": "#2eb886",
+                                                "fields": [
+                                                    {
+                                                        "title": "Resolve code",
+                                                        "value": resolve_code,
+                                                        "short": "false"
+                                                    },
+                                                    {
+                                                        "title": "Resolve Note",
+                                                        "value": resolve_note,
+                                                        "short": "false"
+                                                    }
+                                                ]                                                
+                                            }
+                                        ]
+                        )
+        return post_message              
+                            
+    def open_dialog(self, trigger_id, incident_id):
+        return_msg = self.client.api_call("dialog.open",
+                                trigger_id=trigger_id,
+                                dialog={
+                                        "callback_id": "Resolve_form",
+                                        "title": "Resolve "+incident_id,
+                                        "submit_label": "Submit",
+                                        "elements": [{
+                                                "type": "select",
+                                                "label": "Resolution Code",
+                                                "name": "Resolution Code",
+                                                "options": [{
+                                                        "value": "Solved (Work Around)",
+                                                        "label": "Solved (Work Around)"
+                                                    },
+                                                    {
+                                                        "value": "Solved (Permanently)",
+                                                        "label": "Solved (Permanently)"
+                                                    },
+                                                    {
+                                                        "value": "Not Solved (Not Reproducible)",
+                                                        "label": "Not Solved (Not Reproducible)"
+                                                    },
+                                                    {
+                                                        "value": "Not Solved (Too Costly)",
+                                                        "label": "Not Solved (Too Costly)"
+                                                    },
+                                                    {
+                                                        "value": "Closed/Resolved By Caller",
+                                                        "label": "Closed/Resolved By Caller"
+                                                    }
+                                                ]
+                                            },
+                                            {
+                                                "max_length": 500,
+                                                "name": "Resolution Notes",
+                                                "value": "",
+                                                "placeholder": "",
+                                                "min_length": 0,
+                                                "label": "Resolution Notes",
+                                                "type": "textarea"
+                                            }
+                                        ]
+                                    }
+                                
+                                )
+        print(return_msg)
 
 
